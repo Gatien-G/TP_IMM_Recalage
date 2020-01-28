@@ -20,6 +20,9 @@ def print_with_rescale(img_input, scale_percent = 10, window_name = "Titre"):
     cv2.imshow(window_name, resized)
     cv2.waitKey()
 
+def save_image(image, image_name):
+    cv2.imwrite("./image_result/RGB_"+image_name, image)
+
 def divide_image(img_input, padding = 100):
     height = int(img_input.shape[0] / 3)
     width = img_input.shape[1]
@@ -40,6 +43,7 @@ def main():
     # img_name = "00998u.tif"
     img_name = "01520u.tif"
     # img_name = "01887u.tif"
+
     img = cv2.imread("./"+img_name,0)
 
     # Divide image
@@ -49,6 +53,9 @@ def main():
     fusion_temp = (image_B, image_G, image_R)
     img_color = cv2.merge(fusion_temp)
     print_with_rescale(img_color)
+
+    # Save image
+    save_image(img_color,img_name)
 
 # ---------------------------------------------------------------
 

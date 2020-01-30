@@ -41,6 +41,28 @@ def translation(img,x,y):
 
     return dst
 
+def histogram_joint(img1,img2,print_histo=False):
+    hist_2d, _, _ = np.histogram2d(img1.ravel(), img2.ravel(), bins=20)
+    
+    if(print_histo):
+        hist_2d_log = np.zeros(hist_2d.shape)
+        non_zeros = hist_2d != 0
+        hist_2d_log[non_zeros] = np.log(hist_2d[non_zeros])
+        plt.imshow(hist_2d_log.T, origin='lower')
+        plt.show()
+
+    return hist_2d
+
+def mutual_information(img1,img2):
+    hist2D = histogram_joint(img1,img2)
+    pxy = hist2D / float(np.sum(hist2D))
+    px = np.sum(pxy, axis=1) # marginal for x over y
+    py = np.sum(pxy, axis=0) # marginal for y over x
+    px_py = px[:, None] * py[None, :] # Broadcast to multiply marginals
+    nzs = pxy > 0 # Only non-zero pxy values contribute to the sum
+    return np.sum(pxy[nzs] * np.log(pxy[nzs] / px_py[nzs]))
+
+
 # ---------------------------------------------------------------
 # |                                                             |
 # |                          Main                               |
@@ -57,11 +79,12 @@ def main():
     # Divide image
     (image_B, image_G, image_R) = divide_image(img)
 
+    mutual_information(image_B,image_G)
     # Merge each channel images
     fusion_temp = (image_B, image_G, image_R)
     
     img_color = cv2.merge(fusion_temp)
-    print_with_rescale(img_color)
+    # print_with_rescale(img_color)
 
     # Save image
     save_image(img_color,img_name)

@@ -33,6 +33,14 @@ def divide_image(img_input, padding = 100):
 
     return (img_B,img_G,img_R)
 
+def translation(img,x,y):
+    heigth,width = img.shape
+
+    M = np.float32([[1,0,x],[0,1,y]])
+    dst = cv2.warpAffine(img,M,(width,heigth))
+
+    return dst
+
 # ---------------------------------------------------------------
 # |                                                             |
 # |                          Main                               |
@@ -41,8 +49,8 @@ def divide_image(img_input, padding = 100):
 def main():
     # img_name = "00451u.tif"
     # img_name = "00998u.tif"
-    img_name = "01520u.tif"
-    # img_name = "01887u.tif"
+    # img_name = "01520u.tif"
+    img_name = "01887u.tif"
 
     img = cv2.imread("./"+img_name,0)
 
@@ -51,6 +59,7 @@ def main():
 
     # Merge each channel images
     fusion_temp = (image_B, image_G, image_R)
+    
     img_color = cv2.merge(fusion_temp)
     print_with_rescale(img_color)
 

@@ -41,6 +41,14 @@ def translation(img,x,y):
 
     return dst
 
+def rotation(img,angle):
+    heigth,width = img.shape
+
+    M = cv2.getRotationMatrix2D((width/2,heigth/2),angle,1)
+    dst = cv2.warpAffine(img,M,(width,heigth))
+
+    return dst
+
 def histogram_joint(img1,img2,print_histo=False):
     hist_2d, _, _ = np.histogram2d(img1.ravel(), img2.ravel(), bins=20)
     

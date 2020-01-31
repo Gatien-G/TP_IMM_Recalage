@@ -70,17 +70,25 @@ def mutual_information(img1,img2):
     nzs = pxy > 0 # Only non-zero pxy values contribute to the sum
     return np.sum(pxy[nzs] * np.log(pxy[nzs] / px_py[nzs]))
 
+def gradient(img):
+    # filtre de Sobel
+    kernel = np.array([[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]], float)
+    dx = kernel
+    dy = np.transpose(kernel)
 
+    return img * kernel, img * np.transpose(kernel)
+
+    
 # ---------------------------------------------------------------
 # |                                                             |
 # |                          Main                               |
 # |                                                             |
 # ---------------------------------------------------------------
 def main():
-    # img_name = "00451u.tif"
-    # img_name = "00998u.tif"
-    # img_name = "01520u.tif"
-    img_name = "01887u.tif"
+    # img_name = "00451u.tif" #Ville
+    # img_name = "00998u.tif" #Eglise
+    # img_name = "01520u.tif" #Potager
+    img_name = "01887u.tif" #Russe
 
     img = cv2.imread("./"+img_name,0)
 
@@ -94,6 +102,8 @@ def main():
     img_color = cv2.merge(fusion_temp)
     # print_with_rescale(img_color)
 
+    gx, gy = gradient(img_color)
+
     # Save image
     save_image(img_color,img_name)
 
@@ -103,3 +113,13 @@ start = timeit.default_timer()
 main()
 stop = timeit.default_timer()
 print('Time :', stop - start, "s")
+
+
+"""
+TODO
+
+faire comme matlab
+grad_centre => filtre de sobel
+
+
+"""

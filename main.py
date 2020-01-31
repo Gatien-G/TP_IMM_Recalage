@@ -68,7 +68,7 @@ def mutual_information(img1,img2):
     py = np.sum(pxy, axis=0) # marginal for y over x
     px_py = px[:, None] * py[None, :] # Broadcast to multiply marginals
     nzs = pxy > 0 # Only non-zero pxy values contribute to the sum
-    return np.sum(pxy[nzs] * np.log(pxy[nzs] / px_py[nzs]))
+    return np.sum(pxy[nzs] * np.log(pxy[nzs] / px_py[nzs])) # return mutual information scalar
 
 def gradient(img):
     # filtre de Sobel
@@ -76,9 +76,43 @@ def gradient(img):
     dx = kernel
     dy = np.transpose(kernel)
 
+    # return Gx , Gy
     return cv2.filter2D(img,-1,dx), cv2.filter2D(img,-1,dy)
 
-    
+def recalage(img_model, img_recal):
+    img_translation = img_recal.copy()
+    pi = 0.0
+    pi_old = 1.0
+    qi_old = 1.0
+    qi = 0.0
+
+    epsilon = 0.0000001
+
+    # mut_info = mutual_information(img_model, img_translation)
+
+    while(abs(pi_old - pi) > 0.1 and abs(qi_old - qi) > 0.1):
+        pi_old = pi
+        qi_old = qi
+        gx, gy = gradient(img_translation)
+
+        dmut_info_dp = float(2.0 * np.sum(np.sum(np.subtract(img_translation, img_model) * gx)))
+        dmut_info_dq = float(2.0 * np.sum(np.sum(np.subtract(img_translation, img_model) * gy)))
+
+        pi = pi - epsilon * dmut_info_dp
+        qi = qi - epsilon * dmut_info_dq
+
+        img_translation = translation(img_recal, -pi, -qi)
+
+        cv2.imshow("Recalage", img_translation)
+        cv2.waitKey(10)
+
+        # print("pi = " + str(pi) + " ; qi = " + str(qi))
+        # print("pi_old - pi = " + str(abs(pi_old - pi)) + " ; qi_old - qi = " + str(abs(qi_old - qi)))
+
+        # mut_info = mutual_information(img_model, img_translation)
+
+    return img_translation
+
 # ---------------------------------------------------------------
 # |                                                             |
 # |                          Main                               |
@@ -94,8 +128,39 @@ def main():
 
     # Divide image
     (image_B, image_G, image_R) = divide_image(img)
+    
+    # Debug area ---------------------------------------------------------------------
+    width = int(image_B.shape[1] * 10 / 100)
+    height = int(image_B.shape[0] * 10 / 100)
+    dim = (width, height)
+    # resize image
+    image_B_rescale = cv2.resize(image_B, dim, interpolation = cv2.INTER_AREA)
+    image_B_rescale, _ = gradient(image_B_rescale)
 
-    mutual_information(image_B,image_G)
+    width = int(image_R.shape[1] * 10 / 100)
+    height = int(image_R.shape[0] * 10 / 100)
+    dim = (width, height)
+    # resize image
+    image_R_rescale = cv2.resize(image_R, dim, interpolation = cv2.INTER_AREA)
+    image_R_rescale, _ = gradient(image_R_rescale)
+
+    width = int(image_G.shape[1] * 10 / 100)
+    height = int(image_G.shape[0] * 10 / 100)
+    dim = (width, height)
+    # resize image
+    image_G_rescale = cv2.resize(image_G, dim, interpolation = cv2.INTER_AREA)
+    image_G_rescale, _ = gradient(image_G_rescale)
+
+    print(mutual_information(image_B_rescale,image_G_rescale))
+    img_recale = recalage(image_B_rescale,image_G_rescale)
+    print(mutual_information(image_B_rescale,img_recale))
+
+    fusion = (image_B_rescale, img_recale, image_R_rescale)
+    cv2.imshow("test 1..22...2.22.", cv2.merge(fusion))
+    cv2.waitKey()
+    
+    # ---------------------------------------------------------------------------------
+
     # Merge each channel images
     fusion_temp = (image_B, image_G, image_R)
     

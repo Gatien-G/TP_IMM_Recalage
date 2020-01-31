@@ -76,7 +76,7 @@ def gradient(img):
     dx = kernel
     dy = np.transpose(kernel)
 
-    return img * kernel, img * np.transpose(kernel)
+    return cv2.filter2D(img,-1,dx), cv2.filter2D(img,-1,dy)
 
     
 # ---------------------------------------------------------------
@@ -101,8 +101,6 @@ def main():
     
     img_color = cv2.merge(fusion_temp)
     # print_with_rescale(img_color)
-
-    gx, gy = gradient(img_color)
 
     # Save image
     save_image(img_color,img_name)

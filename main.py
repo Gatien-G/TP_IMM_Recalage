@@ -70,14 +70,14 @@ def mutual_information(img1,img2):
     nzs = pxy > 0 # Only non-zero pxy values contribute to the sum
     return np.sum(pxy[nzs] * np.log(pxy[nzs] / px_py[nzs])) # return mutual information scalar
 
-def gradient(img):
-    # filtre de Sobel
-    kernel = np.array([[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]], float)
-    dx = kernel
-    dy = np.transpose(kernel)
+def SSD(img1, img2):
+    # on fait la difference puis fois puis la somme
+    temp = np.subtract(img1, img2)**2
+    return float(np.sum(temp.ravel()))
 
+def gradient(img):
     # return Gx , Gy
-    return cv2.filter2D(img,-1,dx), cv2.filter2D(img,-1,dy)
+    return cv2.Sobel(img,cv2.CV_32F,1,0,ksize = 3), cv2.Sobel(img,cv2.CV_32F,0,1,ksize = 3)
 
 def recalage(img_model, img_recal):
     img_translation = img_recal.copy()
@@ -86,26 +86,28 @@ def recalage(img_model, img_recal):
     qi_old = 1.0
     qi = 0.0
 
-    epsilon = 0.0000001
+    epsilon = 0.000001
 
     # mut_info = mutual_information(img_model, img_translation)
 
-    while(abs(pi_old - pi) > 0.1 and abs(qi_old - qi) > 0.1):
+    while(abs(pi_old - pi) > 0.0001 and abs(qi_old - qi) > 0.0001):
         pi_old = pi
         qi_old = qi
         gx, gy = gradient(img_translation)
 
-        dmut_info_dp = float(2.0 * np.sum(np.sum(np.subtract(img_translation, img_model) * gx)))
-        dmut_info_dq = float(2.0 * np.sum(np.sum(np.subtract(img_translation, img_model) * gy)))
+        dSSD_dp = float(2.0 * np.sum(np.subtract(img_translation.ravel(), img_model.ravel()) * gx.ravel()))
+        dSSD_dq = float(2.0 * np.sum(np.subtract(img_translation.ravel(), img_model.ravel()) * gy.ravel()))
 
-        pi = pi - epsilon * dmut_info_dp
-        qi = qi - epsilon * dmut_info_dq
+        pi = pi - epsilon * dSSD_dp
+        qi = qi - epsilon * dSSD_dq
 
         img_translation = translation(img_recal, -pi, -qi)
+        print(SSD(img_model, img_translation))
 
         cv2.imshow("Recalage", img_translation)
         cv2.waitKey(10)
 
+        # print("dSSD_dp = " + str(dSSD_dp) + " ; dSSD_dq = " + str(dSSD_dq))
         # print("pi = " + str(pi) + " ; qi = " + str(qi))
         # print("pi_old - pi = " + str(abs(pi_old - pi)) + " ; qi_old - qi = " + str(abs(qi_old - qi)))
 
@@ -125,6 +127,7 @@ def main():
     img_name = "01887u.tif" #Russe
 
     img = cv2.imread("./"+img_name,0)
+    img = np.float32(img/255.0)
 
     # Divide image
     (image_B, image_G, image_R) = divide_image(img)
@@ -151,9 +154,16 @@ def main():
     image_G_rescale = cv2.resize(image_G, dim, interpolation = cv2.INTER_AREA)
     image_G_rescale, _ = gradient(image_G_rescale)
 
-    print(mutual_information(image_B_rescale,image_G_rescale))
+    # print(SSD(image_G_rescale,translation(image_G_rescale, 20.5,10.2)))
+    # print(mutual_information(image_B_rescale,image_G_rescale))
     img_recale = recalage(image_B_rescale,image_G_rescale)
-    print(mutual_information(image_B_rescale,img_recale))
+    img_recale = recalage(image_B_rescale,image_R_rescale)
+    # print(mutual_information(image_B_rescale,img_recale))
+
+    # print_with_rescale(translation(image_G_rescale, 20.0, 20.0), scale_percent=100)
+    # print_with_rescale(img_recale, scale_percent=100)
+    # print(np.amin(img_recale))
+    # print(np.amax(img_recale))
 
     fusion = (image_B_rescale, img_recale, image_R_rescale)
     cv2.imshow("test 1..22...2.22.", cv2.merge(fusion))

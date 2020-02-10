@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import time
 
 def white_balance(img):
     result = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
@@ -23,23 +24,30 @@ def get_gradient(im) :
 # This is an image in which the three channels are
 # concatenated vertically.
 #-----------------------------------------------
-im =  cv2.imread("01887u.tif",0) #Russe
-# im =  cv2.imread("00451u.tif",0) #ville
+# im =  cv2.imread("01887u.tif",0) #Russe
+im =  cv2.imread("00451u.tif",0) #ville
 # im =  cv2.imread("00998u.tif",0) #Eglise
 # im =  cv2.imread("01520u.tif",0) #Potager
 
-im = cv2.resize(im,None, fx=0.1, fy=0.1)
-# im = cv2.resize(im,None, fx=0.6, fy=0.6)
+resizeval = 0.5
+im = cv2.resize(im,None, fx=resizeval, fy=resizeval)
 
+
+#crop image for final rendering
+crop = int(30 * 10 * resizeval)
+#crop for computing matrix
+cropCompute = 200
 # im =  cv2.imread("emir.jpg",0)
 #-------------------------------------------------
 
-mode = "sift"
-# mode = "findECC"
 
+# mode = "findECC"
+mode = "sift"
 # Define motion model
-warp_mode = cv2.MOTION_HOMOGRAPHY
-# warp_mode = cv2.MOTION_AFFINE
+# warp_mode = cv2.MOTION_HOMOGRAPHY
+warp_mode = cv2.MOTION_AFFINE
+# warp_mode = cv2.MOTION_EUCLIDEAN
+# warp_mode = cv2.MOTION_TRANSLATION
 #--------------------------------------------------
 
 # Find the width and height of the color image
@@ -50,7 +58,7 @@ width = sz[1]
 
 # Extract the three channels from the gray scale image
 # and merge the three channels into one color image
-crop = 0
+
 im_color = np.zeros((height-2*crop,width-2*crop,3), dtype=np.uint8 )
 
 for i in range(0,3) :
@@ -65,7 +73,7 @@ for i in range(0,3) :
 cv2.destroyAllWindows()
 
 #--------HOMOGRAPHY C PARTI---------------
-
+startTime = time.time()
 # Find the width and height of the cropped color image
 sz = im_color.shape
 print(sz)
@@ -93,9 +101,14 @@ if(mode == "findECC"):
     # Set the stopping criteria for the algorithm.
     criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 5000,  1e-10)
 
+    #Show image cropped use to compute matrix
+    cv2.imshow("compute image", im_color[cropCompute:height-cropCompute, cropCompute:width-cropCompute, 2])
+    cv2.waitKey()
+    cv2.destroyAllWindows()
+
     # Warp the blue and green channels to the red channel
     for i in range(0,2) :
-        (cc, warp_matrix) = cv2.findTransformECC(get_gradient(im_color[:,:,2]), get_gradient(im_color[:,:,i]),warp_matrix, warp_mode, criteria, None, 5)
+        (cc, warp_matrix) = cv2.findTransformECC(get_gradient(im_color[cropCompute:height-cropCompute, cropCompute:width-cropCompute, 2]), get_gradient(im_color[cropCompute:height-cropCompute, cropCompute:width-cropCompute,i]),warp_matrix, warp_mode, criteria, None, 5)
 
         if warp_mode == cv2.MOTION_HOMOGRAPHY :
             # Use Perspective warp when the transformation is a Homography
@@ -137,18 +150,33 @@ elif(mode == "sift"):
                 # compute Homography
                 warp_matrix, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 
-                # K = np.float64([[width, 0, 0.5*(width-1)],
-                #                [0, width, 0.5*(height-1)],
-                #                [0.0,0.0,1.0]])
-                # num, Rs, Ts, Ns  = cv2.decomposeHomographyMat(homography, K)
-                # print(Ts)
-
                 im_aligned[:,:,i] = cv2.warpPerspective(im_color[:,:,i], warp_matrix, (width,height), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
 
-            else:
-                if warp_mode == cv2.MOTION_AFFINE:
-                    #Get the Affine Transform
-                    warp_matrix = cv2.getAffineTransform(src_pts[7:10], dst_pts[7:10])
+            else:    
+                # #Get the Affine Transform
+                warp_matrix = cv2.getAffineTransform(src_pts[7:10], dst_pts[7:10])
+
+                # #Get transform matrix by using all points from RANSAC (not better)
+                # lat = np.array([], dtype='float')
+                # lon = np.array([], dtype='float')
+                # x = np.array([], dtype='float')
+                # y = np.array([], dtype='float')
+                # A = []
+
+                # for j in range(src_pts.shape[0]):   
+                #     lat = np.append(lat , dst_pts[j][0][0])
+                #     lon = np.append(lon , dst_pts[j][0][1])
+                #     x = src_pts[i][0][0]
+                #     y = src_pts[i][0][1]
+                #     A.append([x,y,1])
+                # A = np.vstack(A)
+
+
+                # # compute each line of the tansformation matrix
+                # line1, *_ = np.linalg.lstsq(A,lat, rcond=None)
+                # line2, _, _, _ = np.linalg.lstsq(A,lon, rcond=None)
+                # warp_matrix = np.array([line1, line2], dtype='float')
+
                 # Use Affine warp when the transformation is not a Homography
                 im_aligned[:,:,i] = cv2.warpAffine(im_color[:,:,i], warp_matrix, (width, height), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
             
@@ -156,6 +184,8 @@ elif(mode == "sift"):
                     
         else:
             print("not enough matches")
+
+print("temps : " + str(time.time() - startTime))
 
 cv2.destroyAllWindows()
 # Show final output
